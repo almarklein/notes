@@ -172,7 +172,14 @@ class NotesContainer(QtGui.QWidget):
         widget = self._timer._focusWidget
         self._timer._focusWidget = None
         if widget:
+            # Ensure whole widget is visible
             self._main._scrollArea.ensureWidgetVisible(widget)
+            # If it is bigger than available screen, at least show the label
+            if widget._editor and widget._editor.isVisible():
+                pos = widget._editor.cursorRect().bottomLeft()
+                pos = widget._editor.mapTo(self, pos)
+                self._main._scrollArea.ensureVisible(pos.x(), pos.y())
+                #self._main._scrollArea.ensureWidgetVisible(widget._label)
 
 
 
@@ -299,10 +306,13 @@ class NoteDisplay(QtGui.QFrame):
     def expandNote(self):
         self.makeEditor()
         self._editor.show()
+        self._editor.setFocus()
+        self._editor.moveCursor(QtGui.QTextCursor.Start, QtGui.QTextCursor.MoveAnchor)
         #self._title.hide()
         self.updateLabel()
         #self.parent().parent().parent().parent().focusOnNote(self)
         self.parent().focusOnNote(self)
+        
 
 
 
@@ -312,7 +322,7 @@ class ScalingEditor(QtGui.QTextEdit):
     """
     
     MINHEIGHT = 40
-    MAXHEIGHT = 400
+    MAXHEIGHT = 4000
     
     def __init__(self, parent):
         super().__init__()
@@ -320,13 +330,20 @@ class ScalingEditor(QtGui.QTextEdit):
         self.textChanged.connect(self._fitHeightToDocument)
         #self.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Preferred)
         self.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Fixed)
+        self.setAcceptRichText(False)
     
     def _fitHeightToDocument(self):
         self.document().setTextWidth(self.viewport().width())
         docSize = self.document().size().toSize()
-        self._fitted_height = docSize.height() + 5
-        self.updateGeometry()
-        self.parent().parent().updateGeometry()
+        newHeight = docSize.height() + 5
+        if newHeight != self._fitted_height:
+            self._fitted_height = newHeight
+            self.updateGeometry()
+            self.parent().parent().updateGeometry()
+    
+    def resizeEvent(self, event):
+        QtGui.QTextEdit.resizeEvent(self, event)
+        self._fitHeightToDocument()
     
     def sizeHint(self):
         sizeHint = QtGui.QPlainTextEdit.sizeHint(self)
