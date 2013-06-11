@@ -5,6 +5,18 @@ import datetime
 class Note:
     """ Representation of a note plus convenience stuff such
     as getting tags etc.
+    
+    A note has the following properties:
+      * header - the header without the '----', that may contain a date
+      * datetime - datetime instance. dateless notes have a very old date
+      * datestr - string representation of the date
+      * text - the full text :)
+      * title - the first line of the text, stripped. 
+      * prefix - the prefix indicating the type of note
+      * priority - len(prefix)
+      * tags - set of tags present in this note (all lowercase)
+      * words - set of words present in this note (all lowercase)
+    
     """
    
     def __init__(self, fileProxy, header, text):
@@ -48,13 +60,11 @@ class Note:
         """
         return self._dts
     
-    
     @property
     def priority(self):
-        """ For tasks, the priority of the task (0 for non-tasks).
+        """ For tasks, the priority of the task/note/idea.
         """
-        prefix = self._text.split(' ', 1)[0]
-        return {'!':0, '!!':1, '!!!':2}.get(prefix, 0)
+        return len(self.prefix)
     
     # Management
     
@@ -107,6 +117,11 @@ class Note:
         self.title = title
         self.tags = tags
         self.words = words
+        
+        # Store prefix
+        self.prefix = self.title.split(' ', 1)[0]
+        if self.prefix not in '! !! !!! ? ?? ??? % % %%%':
+            self.prefix = '%'
 
 
 

@@ -6,10 +6,10 @@ import datetime
 
 from iep.codeeditor.qt import QtCore, QtGui
 
-
-# from .noteproxy import Note
-# from .notecollection import NoteCollection
-# from .notedisplay import NoteContainer
+CLR_NOTE = '#268bd2'
+CLR_TASK = '#cb4b16'  # orange '#cb4b16'   red '#dc322f'
+CLR_IDEA = '#859900'  # yellow '#b58900'   green '#859900'
+CLR_HIDE = '#93a1a1'
 
 
 class NotesContainer(QtGui.QWidget):
@@ -263,10 +263,10 @@ class NoteDisplay(QtGui.QFrame):
             note.setText(self._editor.toPlainText())
         
         # Our background
-        MAP = {'!':'FCC', '!!':'FBB', '!!!':'FAA', 
-                'x!': 'CCC',  'x!!':'CCC', 'x!!!':'CCC', 
-                '?': 'DFD'}
-        color = 'background-color:#%s;' %  MAP.get(note.text.split(' ',1)[0], 'DDF')
+        MAP = {'%': CLR_NOTE, '!': CLR_TASK, '?': CLR_IDEA, '.': CLR_HIDE}
+        clr = QtGui.QColor(MAP.get(note.prefix[0], '#FEE')).toHsv()
+        clr = clr.lighter([100, 200, 180, 160][note.priority])
+        color = 'background-color:%s;' %  clr.name()
         border = 'border: 1px solid #aaa; border-radius: 5px; margin-top:-1px;'
         self.setStyleSheet("NoteDisplay {%s%s}" % (border, color))
         
