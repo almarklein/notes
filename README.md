@@ -39,22 +39,35 @@ using a simple text editor.
   
 Each note can start with a prefix to identify its type:
 
-    % This is a normal note ----- ! This is a task ---- ? This is an
-    idea ---- This is also a normal note The percent sign is optional.
+    % This is a normal note 
+    ----- 
+    ! This is a task 
+    ---- 
+    ? This is an idea 
+    ---- 
+    This is also a normal note 
+    The percent sign is optional.
     
 Notes can be prioritized (three levels are supported):
 
-    !! Finish this task quickly! ---- !!! This task is even more
-    important ---- ?? This is a particularly good idea ---- %% This
-    would be sort of like a sticky note Prioritizing makes the most
-    sense for tasks.
+    !! Finish this task quickly! 
+    ---- 
+    !!! This task is even more important 
+    ---- 
+    ?? This is a particularly good idea 
+    ---- 
+    %% This would be sort of like a sticky note 
+    Prioritizing makes the most sense for tasks.
     
 Finally, any note that starts with a dot is hidden. You can of course
 delete notes, but sometimes it's nice to look back at all the tasks
 that you've accomplished.
 
-    .! A completed task ---- .? An idea that turned out to be a bad one
-    ---- .Some note that may be irrelevant now
+    .! A completed task 
+    ---- 
+    .? An idea that turned out to be a bad one
+    ---- 
+    .Some note that may be irrelevant now
     
 
 # Using tags
@@ -64,9 +77,10 @@ starting a word with ``#``, similar to hashtags in twitter of G+. Tags
 define a context and allows the user to easily (and quickly) select
 certain notes of interest.
 
-    This is a note about #tags For instance #home, or #work, or
-    #myproject To help retrieving notes, users are encouraged to specify
-    at least one tag per note.
+    This is a note about #tags 
+    For instance #home, or #work, or #myproject 
+    To help retrieving notes, users are encouraged to 
+    specify at least one tag per note.
     
 
 # Selection syntax
@@ -84,9 +98,11 @@ considered infinitelt old.
 To select a type of note, the first word of the query should simply
 match the note type:
 
-    %  (Select all normal notes) !  (Select all tasks) ?  (Select all
-    ideas) .  (Select all hidden notes) !!  (Select all tasks with
-    priority 2 and higher)
+    %  (Select all normal notes) 
+    !  (Select all tasks) 
+    ?  (Select all ideas) 
+    .  (Select all hidden notes) 
+    !!  (Select all tasks with priority 2 and higher)
     
 If a particular type of note is selected, the notes are organized by
 priority (and then chronologically).
@@ -95,10 +111,10 @@ The query can further contain tags. The application may provide you
 with an easy way to see all used tags. The tags are case insensitive.
 If multiple tags are given, the result is the AND of the subqueries:
 
-    ! #work  (Select all tasks related to work) ! #work #cloud  (Select
-    all tasks that are related to work AND to "cloud")
-    # home  (Select all notes related to home) (Select all notes that
-    # have no tags)
+    ! #work  (Select all tasks related to work) 
+    ! #work #cloud  (Select all tasks that are related to work AND to "cloud")
+    #home  (Select all notes related to home) 
+    # (Select all notes that have no tags)
       
 Finally, the query can also contain plain words. In this case the
 applicaton will search through the full texts of all notes, and the
@@ -106,8 +122,8 @@ selection may therefore be less fast if you have many notes. It is up
 to the application to support only whole words or also partial words.
 All word searches are case insensitive though.
 
-    ! #work Ian  (Select all work-related tasks that mention Ian) ?
-    cloud  (Select all ideas that have the word "cloud" in them)
+    ! #work Ian  (Select all work-related tasks that mention Ian) 
+    ? cloud  (Select all ideas that have the word "cloud" in them)
     
 
 # Advanced selection syntax
