@@ -123,7 +123,7 @@ class Note:
         self.prefix = self.title.split(' ', 1)[0]
         if self.prefix.startswith('.'):
             self.prefix = '.'  # hidden
-        elif self.prefix not in '! !! !!! ? ?? ??? % % %%%':
+        elif not (self.prefix and self.prefix in '! !! !!! ? ?? ??? % % %%%'):
             self.prefix = '%'  # Default is a normal note
 
 

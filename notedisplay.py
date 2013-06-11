@@ -179,11 +179,13 @@ class NotesContainer(QtGui.QWidget):
             self._main._scrollArea.ensureWidgetVisible(widget)
             # If it is bigger than available screen, at least show the label
             if widget._editor and widget._editor.isVisible():
-                pos = widget._editor.cursorRect().bottomLeft()
-                pos = widget._editor.mapTo(self, pos)
-                self._main._scrollArea.ensureVisible(pos.x(), pos.y())
+                self.focusOnEditor(widget._editor)
                 #self._main._scrollArea.ensureWidgetVisible(widget._label)
-
+    
+    def focusOnEditor(self, editor):
+        pos = editor.cursorRect().bottomLeft()
+        pos = editor.mapTo(self, pos)
+        self._main._scrollArea.ensureVisible(pos.x(), pos.y())
 
 
 class NoteDisplay(QtGui.QFrame):
@@ -345,6 +347,7 @@ class ScalingEditor(QtGui.QTextEdit):
             self._fitted_height = newHeight
             self.updateGeometry()
             self.parent().parent().updateGeometry()
+            self.parent().parent().focusOnEditor(self)
     
     def resizeEvent(self, event):
         QtGui.QTextEdit.resizeEvent(self, event)
