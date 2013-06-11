@@ -39,15 +39,15 @@ using a simple text editor.
   
 Each note can start with a prefix to identify its type:
 
-:::plain
-% This is a normal note 
------ 
-! This is a task 
----- 
-? This is an idea 
----- 
-This is also a normal note 
-The percent sign is optional.
+    :::plain
+    % This is a normal note 
+    ----- 
+    ! This is a task 
+    ---- 
+    ? This is an idea 
+    ---- 
+    This is also a normal note 
+    The percent sign is optional.
     
 Notes can be prioritized (three levels are supported):
 
