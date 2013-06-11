@@ -39,7 +39,6 @@ using a simple text editor.
   
 Each note can start with a prefix to identify its type:
 
-    :::plain
     % This is a normal note 
     ----- 
     ! This is a task 
