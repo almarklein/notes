@@ -77,7 +77,7 @@ starting a word with ``#``, similar to hashtags in twitter of G+. Tags
 define a context and allows the user to easily (and quickly) select
 certain notes of interest.
 
-    This is a note about #tags 
+    % This is a note about #tags 
     For instance #home, or #work, or #myproject 
     To help retrieving notes, users are encouraged to 
     specify at least one tag per note.
@@ -87,8 +87,8 @@ certain notes of interest.
   
 This format also specifies a simple syntax for selecting notes. An
 application supporting this format will typically have a one-line
-text-box into which you can write your query. This sounds a bit
-old-school or comman-line style, but bear with me; the syntax is really
+text-box into which you can write your query. This may sound a bit
+old-school, but bear with me; the syntax is really
 easy!
 
 Firstly, if the query is empty, all notes of all types (except hidden
