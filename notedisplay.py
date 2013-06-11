@@ -9,7 +9,7 @@ from iep.codeeditor.qt import QtCore, QtGui
 CLR_NOTE = '#268bd2'
 CLR_TASK = '#cb4b16'  # orange '#cb4b16'   red '#dc322f'
 CLR_IDEA = '#859900'  # yellow '#b58900'   green '#859900'
-CLR_HIDE = '#93a1a1'
+CLR_HIDE = '#666666'
 
 
 class NotesContainer(QtGui.QWidget):
@@ -90,24 +90,26 @@ class NotesContainer(QtGui.QWidget):
         items = [i.strip().lower() for i in self._main._select.text().split(' ')]
         items = [i for i in items if i]
         
-        notesToShow = []
+        # First item is prefix
+        selection1 = []
+        if items and items[0] in '. % %% %%% ! !! !!! ? ?? ???':
+            # Remove first item
+            prefix = items.pop(0)
+            # Selecy all notes with the given prefix
+            selection1 = [note for note in self._collection 
+                                        if note.prefix.startswith(prefix)]
+        else:
+            prefix = None
+            # Select all but hidden notes
+            selection1 = [note for note in self._collection 
+                                        if note.prefix != '.']
         
-        for note in self._collection:
+        # Next search for tags and words
+        selection2 = []
+        for note in selection1:
             showNote = True
             for item in items:
-                if item == '!':
-                    if note.text.split(' ',1)[0] not in ['!', '!!', '!!!']:
-                        showNote = False
-                elif item == '!!':
-                    if note.text.split(' ',1)[0] not in ['!!', '!!!']:
-                        showNote = False
-                elif item == '!!!':
-                    if note.text.split(' ',1)[0] not in ['!!!']:
-                        showNote = False
-                elif item == '?':
-                    if not note.text.startswith('?'):
-                        showNote = False
-                elif item.startswith('#'):
+                if item.startswith('#'):
                     if item == '#':
                         if note.tags:
                             showNote = False
@@ -117,13 +119,14 @@ class NotesContainer(QtGui.QWidget):
                     if item not in note.words:
                         showNote = False
             if showNote:
-                notesToShow.append(note)
+                selection2.append(note)
         
         # Sort
-        notesToShow.sort(key=lambda x: x.datetime, reverse=True)
-        if '!' in items:
-            notesToShow.sort(key=lambda x: x.priority, reverse=True)
-        return notesToShow
+        selection2.sort(key=lambda x: x.datetime, reverse=True)
+        if prefix:
+            selection2.sort(key=lambda x: x.priority, reverse=True)
+        return selection2
+    
     
     def _showNotes(self):
         
@@ -264,7 +267,7 @@ class NoteDisplay(QtGui.QFrame):
         
         # Our background
         MAP = {'%': CLR_NOTE, '!': CLR_TASK, '?': CLR_IDEA, '.': CLR_HIDE}
-        clr = QtGui.QColor(MAP.get(note.prefix[0], '#FEE')).toHsv()
+        clr = QtGui.QColor(MAP.get(note.prefix[0], '#EEE'))
         clr = clr.lighter([100, 200, 180, 160][note.priority])
         color = 'background-color:%s;' %  clr.name()
         border = 'border: 1px solid #aaa; border-radius: 5px; margin-top:-1px;'
@@ -277,7 +280,9 @@ class NoteDisplay(QtGui.QFrame):
         closeString = closeString if (self._editor and self._editor.isVisible()) else ''
         # Set text
         F = '<span style="font-size:small; color:#777;">%s - %s %s</span>'
-        self._label.setText(F % (when, tagstring, closeString)+'<br />'+note.title)
+        title = '<span style="font-family:mono;">%s</span> %s' % (
+                        note.prefix, note.title.strip(note.prefix+' '))
+        self._label.setText(F % (when, tagstring, closeString)+'<br />'+title)
         #self._title.setText(note.title)
     
     

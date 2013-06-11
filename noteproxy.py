@@ -84,7 +84,8 @@ class Note:
     
     def _parseHeader(self):
         header = self._header
-        self._dt = datetime.datetime.now() + datetime.timedelta(100) # Future
+        #self._dt = datetime.datetime.now() + datetime.timedelta(100) # Future
+        self._dt = datetime.datetime(1, 1, 1) # Long ago :) (only for sorting)
         self._dts = ''
         for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d', '%Y%m%d']:
             try:
@@ -120,9 +121,10 @@ class Note:
         
         # Store prefix
         self.prefix = self.title.split(' ', 1)[0]
-        if self.prefix not in '! !! !!! ? ?? ??? % % %%%':
-            self.prefix = '%'
-
+        if self.prefix.startswith('.'):
+            self.prefix = '.'  # hidden
+        elif self.prefix not in '! !! !!! ? ?? ??? % % %%%':
+            self.prefix = '%'  # Default is a normal note
 
 
 class FileProxy:
