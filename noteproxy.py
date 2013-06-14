@@ -18,6 +18,10 @@ class Note:
       * words - set of words present in this note (all lowercase)
     
     """
+    
+    __slots__ = ['_fileProxy', '_header', '_text', '_text0', 
+                '_dt', '_dts',
+                'title', 'tags', 'words', 'prefix']
    
     def __init__(self, fileProxy, header, text):
         self._fileProxy = fileProxy
@@ -127,6 +131,7 @@ class Note:
             self.prefix = '%'  # Default is a normal note
 
 
+
 class FileProxy:
     """ Representation of a file containing notes. 
     This class is responsible for loading the notes from the file,
@@ -161,7 +166,7 @@ class FileProxy:
                 if header or text: # Skip completely empty notes
                     notes.append(Note(self, header, text+'\n'))
         
-        # Dome
+        # Done
         self._modtime = os.path.getmtime(self._filename)
         self._notes = notes
         return notes

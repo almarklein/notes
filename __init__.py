@@ -19,7 +19,6 @@ A note has:
 # todo: overview of total+shown notes, number of tasks
 # todo: creating new note is buggy
 # todo: deleting a note is buggy
-# todo: Collecy all used tags, and determine minimal set that covers all notes
 
 import os
 import sys
@@ -74,14 +73,11 @@ class Notes(QtGui.QWidget):
         
         # Give select field a menu
         button = self._select.addButtonRight(None, False)
-        menu = QtGui.QMenu(button)
+        self._tagMenu = menu = QtGui.QMenu(button)
         button.setMenu(menu)
         menu.triggered.connect(self.onMenuTriggered)
-        #
-        menu.addAction('! (select tasks)')
-        menu.addAction('? (select ideas)')
-        for tag in ['#Home', '#SA', '#Cybermind', '#Vispy', '#Cursus']:
-            menu.addAction(tag)
+        menu.aboutToShow.connect(self.onMenuAboutToShow)
+        #button.pressed.connect(self.onMenuAboutToShow)
         
         # Create timer to check for updates
         self._timer = QtCore.QTimer(self)
@@ -105,11 +101,51 @@ class Notes(QtGui.QWidget):
         self._container.showNotes()
     
     
+    def onMenuAboutToShow(self):
+        # Get selection and tags
+        prefix, tags, words = self._container.currentSelection()
+        strictTags, nonStrictTags = self._container.tags()
+        
+        # Clear menu
+        menu = self._tagMenu
+        menu.clear()
+        menu.addAction('Clear selection')
+        
+        # Set prefix
+        submenu = menu.addMenu('Note type ...')
+        for p in (  ' select all note types', '% (select regular notes)', 
+                    '! (select tasks)', '? (select ideas)'):
+            a = submenu.addAction(p)
+            a.setCheckable(True)
+            a.setChecked(p.split(' ')[0]==prefix)
+        
+        # Add tags
+        submenu = menu.addMenu('Minimal tag set ...')
+        for tag, count in strictTags:
+            submenu.addAction('%s (%i)' % (tag, count))
+        if not strictTags:
+            a = submenu.addAction('No minimal tags')
+            a.setEnabled(False)
+        #
+        submenu = menu.addMenu('More tags ...')
+        for tag, count in nonStrictTags:
+            submenu.addAction('%s (%i)' % (tag, count))
+        if not nonStrictTags:
+            a = submenu.addAction('No extra tags')
+            a.setEnabled(False)
+    
     def onMenuTriggered(self, action):
         text = action.text().split(' ', 1)[0]
         curText = self._select.text().strip()
-        if curText: curText += ' '
-        self._select.setText( '%s%s ' % (curText, text) )
+        if text.lower().startswith('clear'):
+            self._select.setText('')
+        elif text in '%!?': # also empty string
+            curText = curText.lstrip('%!? ')
+            if (curText and text): text += ' '
+            self._select.setText( '%s%s ' % (text, curText) )
+        elif text.lower().startswith('#'):
+            if curText: curText += ' '
+            self._select.setText( '%s%s ' % (curText, text) )
     
     
     def closeEvent(self, event):

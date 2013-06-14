@@ -5,19 +5,24 @@ from .noteproxy import FileProxy, Note
 
 
 class NoteCollection:
-    
+    """ Represent a collection of notes. Handles the combining of multiple
+    file proxies. 
+    """ 
     def __init__(self, *filenames):
+        
+        # List of file proxies and set of notes contained therein
         self._fileProxies = []
         self._notes = set()
         
+        # Create proxies
         for filename in filenames:
             if not os.path.isfile(filename):
                 raise ValueError('Note file does not exist: %r' % filename)
             self._fileProxies.append(FileProxy(filename))
-        
         if not self._fileProxies:
             raise RuntimeError('Need at least one note file.')
         
+        # Query notes
         self.update()
     
     def __iter__(self):

@@ -25,7 +25,9 @@ class NotesContainer(QtGui.QWidget):
         
         # List of (heavy) widgets to display a note
         self._noteDisplays = []
+        # List of (light) note objects
         self._notesToShow = []
+        self._notesToShow_pending = []  # Notes are not shown yet
         
         # Timer to keep scrolling right
         self._timer = QtCore.QTimer(self)
@@ -75,51 +77,73 @@ class NotesContainer(QtGui.QWidget):
             noteDisplay.close()
         self._noteDisplays = []
         
-        # todo filter, sort
-        # todo: only show a few
-        
         # Select notes and sort
         self._notesToShow = self._selectNotes()
+        self._notesToShow_pending = list(self._notesToShow) # Copy
         self._showNotes()
     
     
-    def _selectNotes(self):
-        """ Turn notes visible or not, depending on the selection box.
+    def currentSelection(self):
+        """ Get more useful representation of what the user is looking for
+        (prefix, tags, words).
         """
         # Get search items
         items = [i.strip().lower() for i in self._main._select.text().split(' ')]
         items = [i for i in items if i]
         
-        # First item is prefix
-        selection1 = []
+        prefix = ''
+        tags = []
+        words = []
+        
+        # First item can be the prefix
         if items and items[0] in '. % %% %%% ! !! !!! ? ?? ???':
-            # Remove first item
             prefix = items.pop(0)
-            # Selecy all notes with the given prefix
+        
+        # Next are either words or tags
+        for item in items:
+            if item.startswith('#'):
+                tags.append(item)
+            else:
+                words.append(item)
+        
+        # Done
+        return prefix, tags, words
+        
+    
+    def _selectNotes(self):
+        """ Turn notes visible or not, depending on the selection box.
+        """
+        # Get selection
+        prefix, tags, words = self.currentSelection()
+        
+        # process prefix: Select all notes with the given prefix, or
+        # select all but hidden notes
+        selection1 = []
+        if prefix:
             selection1 = [note for note in self._collection 
                                         if note.prefix.startswith(prefix)]
         else:
-            prefix = None
-            # Select all but hidden notes
             selection1 = [note for note in self._collection 
                                         if note.prefix != '.']
         
-        # Next search for tags and words
-        selection2 = []
-        for note in selection1:
-            showNote = True
-            for item in items:
-                if item.startswith('#'):
+        # Search for tags and words
+        if not (tags or words):
+            selection2 = selection1
+        else:
+            selection2 = []
+            for note in selection1:
+                showNote = True
+                for item in tags:
                     if item == '#':
                         if note.tags:
                             showNote = False
                     elif item not in note.tags:
                         showNote = False
-                else:
+                for item in words:
                     if item not in note.words:
                         showNote = False
-            if showNote:
-                selection2.append(note)
+                if showNote:
+                    selection2.append(note)
         
         # Sort
         selection2.sort(key=lambda x: x.datetime, reverse=True)
@@ -133,26 +157,15 @@ class NotesContainer(QtGui.QWidget):
         noteToFocus = None
         
         for i in range(16):
-            if not self._notesToShow:
+            if not self._notesToShow_pending:
                 break
             
-            note = self._notesToShow.pop(0)
+            note = self._notesToShow_pending.pop(0)
             
             noteDisplay = NoteDisplay(self, note)
             self._noteDisplays.append(noteDisplay)
             self.layout().insertWidget(1, noteDisplay, 0)
             noteToFocus = noteToFocus or noteDisplay
-            
-#             # Insert in layout
-#             index = -1  # At the end
-#             layout = self.layout()
-#             for i in range(layout.count()-1, 0, -1):
-#                 noteDisplay2 = layout.itemAt(i).widget()
-#                 if note.datetime > noteDisplay2._note.datetime:
-#                     break
-#                 else:
-#                     index = i
-#             self.layout().insertWidget(index, noteDisplay, 0)
         
         self._stopper.setMinimumHeight(20*len(self._notesToShow))
         # Focus on that widget
@@ -160,12 +173,54 @@ class NotesContainer(QtGui.QWidget):
     
     
     def _checkNeedMoreDisplays(self):
-        if self._notesToShow:
+        if self._notesToShow_pending:
             bottom = self._stopper.rect().bottom()
             top = self.visibleRegion().boundingRect().top()
             if bottom > top:
                 self._showNotes()
     
+    
+    def tags(self):
+        """ Get tags grouped in two lists, one is a minimal set that
+        contains all notes, the other contains the rest. Both lists
+        have tags represented as tuples (tagname, count).
+        """
+        # Get selection
+        selectedPrefix, selectedTags, selectedWords = self.currentSelection()
+        
+        # Create dict that maps tags to sets of notes.
+        tagsDict = {}
+        for note in self._notesToShow:
+            for tag in note.tags:
+                tagsDict.setdefault(tag, set()).add(note)
+        
+        # Sort tags by notecount
+        tags = sorted(tagsDict.keys(), key=lambda t:len(tagsDict[t]), reverse=True)
+        
+        # Remove tags that we already selected for
+        for tag in selectedTags:
+            if tag in tags:
+                tags.remove(tag)
+        
+        # Now for each tag, collect notes until we have all notes
+        # Collect (estimate of) smallest set that contains all notes
+        N = len(self._notesToShow)
+        strictTags = []
+        nonStrictTags = []
+        allNotes = set()
+        for tag in tags:
+            if len(allNotes) < N:
+                notesForTag = tagsDict[tag]
+                if notesForTag.difference(allNotes):
+                    allNotes = allNotes.union(notesForTag)
+                    strictTags.append(tag)
+                    continue
+            nonStrictTags.append(tag)
+        
+        # Return the two lists
+        return (    [(tag, len(tagsDict[tag])) for tag in strictTags],
+                    [(tag, len(tagsDict[tag])) for tag in nonStrictTags]
+                )
     
     def focusOnNote(self, widget):
         self._timer._focusWidget = widget
