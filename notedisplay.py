@@ -6,6 +6,7 @@ import datetime
 
 from iep.codeeditor.qt import QtCore, QtGui
 
+
 CLR_NOTE = '#268bd2'
 CLR_TASK = '#cb4b16'  # orange '#cb4b16'   red '#dc322f'
 CLR_IDEA = '#859900'  # yellow '#b58900'   green '#859900'
@@ -116,6 +117,10 @@ class NotesContainer(QtGui.QWidget):
         # Get selection
         prefix, tags, words = self.currentSelection()
         
+        # Collect tags
+        self._allTags = allTags = set()
+        self._selectedTags = selectedTags = set()
+        
         # process prefix: Select all notes with the given prefix, or
         # select all but hidden notes
         selection1 = []
@@ -125,6 +130,8 @@ class NotesContainer(QtGui.QWidget):
         else:
             selection1 = [note for note in self._collection 
                                         if note.prefix != '.']
+        
+        [allTags.update(n.tags) for n in selection1]
         
         # Search for tags and words
         if not (tags or words):
@@ -144,6 +151,12 @@ class NotesContainer(QtGui.QWidget):
                         showNote = False
                 if showNote:
                     selection2.append(note)
+        
+        [selectedTags.update(n.tags) for n in selection2]
+        
+        # Update selection box
+        self._main._tagsCompleter.setWords(allTags)
+        #self._main._tagsCompleter.setWordsToIgnore(tags)
         
         # Sort
         selection2.sort(key=lambda x: x.datetime, reverse=True)
@@ -321,6 +334,7 @@ class NoteDisplay(QtGui.QFrame):
         note = self._note
         if self._editor is not None:
             note.setText(self._editor.toPlainText())
+            self._tagsCompleter.setWordsToIgnore(note.tags)
         
         # Our background
         MAP = {'%': CLR_NOTE, '!': CLR_TASK, '?': CLR_IDEA, '.': CLR_HIDE}
@@ -346,10 +360,17 @@ class NoteDisplay(QtGui.QFrame):
     def makeEditor(self):
         if self._editor is None:
             self._editor = ScalingEditor(self)
+            #
+            from . import TagCompleter
+            self._tagsCompleter = TagCompleter(self._editor, self.parent()._allTags)
+            self._editor.setCompleter(self._tagsCompleter)
+            #
             self._editor.textChanged.connect(self.updateLabel)
             self.layout().addWidget(self._editor, 0)
             self._editor.setText(self._note.text)
             #self._editor.focusOutEvent = lambda ev: self._collapseOrExpand()
+            
+            
     
     def _collapseOrExpand(self):
         if self._editor and self._editor.isVisible():
@@ -380,7 +401,7 @@ class NoteDisplay(QtGui.QFrame):
 
 class ScalingEditor(QtGui.QTextEdit):
     """ Editor that scales itself with its contents; scrolling takes
-    place in the ScrollArea.
+    place in the ScrollArea. Also implements autocompletion.
     """
     
     MINHEIGHT = 40
@@ -393,6 +414,7 @@ class ScalingEditor(QtGui.QTextEdit):
         #self.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Preferred)
         self.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Fixed)
         self.setAcceptRichText(False)
+        self._completer = None
     
     def _fitHeightToDocument(self):
         self.document().setTextWidth(self.viewport().width())
@@ -416,4 +438,34 @@ class ScalingEditor(QtGui.QTextEdit):
     def minimumSizeHint(self):
         return QtCore.QSize(0, self.MINHEIGHT)
     
-
+    def setCompleter(self, completer):
+        if not completer: return
+        completer.setWidget(self)
+        completer.highlighted.connect(self._onCompletionHighlighted)
+        self._completer = completer
+    
+    def _onCompletionHighlighted(self, text):
+        # Start of word is right *after* the # symbol
+        cursor = self.textCursor()
+        cursor.movePosition(cursor.StartOfWord, cursor.KeepAnchor)
+        cursor.insertText(text[1:])
+    
+    def textUnderCursor(self):
+        cursor = self.textCursor()
+        cursor.movePosition(cursor.StartOfLine, cursor.KeepAnchor)
+        line = cursor.selectedText()
+        line = line.replace(',', ' ').replace('  ', ' ').replace('  ', ' ')
+        return line.split(' ')[-1]
+    
+    def keyPressEvent(self, event):
+        QtGui.QTextEdit.keyPressEvent(self, event)
+        
+        completionPrefix = self.textUnderCursor()
+        if (completionPrefix != self._completer.completionPrefix()):
+            self._completer.setCompletionPrefix(completionPrefix)
+            popup = self._completer.popup()
+        
+        # popup it up!
+        cr = self.cursorRect()
+        cr.setWidth(100)
+        self._completer.complete(cr)

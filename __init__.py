@@ -70,6 +70,9 @@ class Notes(QtGui.QWidget):
         self._select.setPlaceholderText('Select notes')
         self._select.editingFinished.connect(self._container.showNotes)
         self._select.textChanged.connect(self._container.showNotes)
+        #
+        self._tagsCompleter = TagCompleter(self._select)
+        self._select.setCompleter(self._tagsCompleter)
         
         # Give select field a menu
         button = self._select.addButtonRight(None, False)
@@ -166,6 +169,46 @@ class Notes(QtGui.QWidget):
                     "Notes have been updated externally in\n%s\n\n" % filestr +
                     "Saving your notes now may override these updates " +
                     "if they're defined in the same file." )
+
+
+
+class TagCompleter(QtGui.QCompleter):
+    """ Completer implementation used for adding tags to a task.
+    """
+    
+    def __init__(self, parent, words=None, wordsToIgnore=None):
+        QtGui.QCompleter.__init__(self, [], parent)
+        self.setWidget(parent)
+        self._widget = parent # For some reason widget() can segfault on cleanup
+        
+        self._words = words or set()
+        self._wordsToIgnore = wordsToIgnore or set()
+        
+        self.setCompletionMode(self.PopupCompletion)
+        self.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        
+        self._updateWordList()
+    
+    def setWords(self, words):
+        self._words = set(words)
+        self._updateWordList()
+    
+    def setWordsToIgnore(self, words):
+        self._wordsToIgnore = set(words)
+        self._updateWordList()
+    
+    def _updateWordList(self):
+        words = self._words.difference(self._wordsToIgnore)
+        self.model().setStringList(sorted(words))
+    
+    def splitPath(self, path):
+        # Simply return last entry
+        lastword = path.split(' ')[-1]
+        if lastword.startswith('#'):
+            return [lastword]
+        else:
+            # Fool completer that the completion is an unknown word
+            return ['xxxxxxxxxxxxxxxx']
 
 
 # From iep/tools/iepfilebrowser
