@@ -1,6 +1,25 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2013, Almar Klein
+# BSD licensed.
+
+""" notes.noteproxy
+This module implements how notes are read/written to file.
+"""
+
 import os
 import sys
 import datetime
+import random
+import hashlib
+
+
+# def str_to_int(s):
+#     """ Create an integer hash for the given string.
+#     """
+#     chars = hashlib.md5(s.encode('utf-8')).hexdigest()
+#     bignum = eval('0x'+chars)
+#     return bignum
+
 
 class Note:
     """ Representation of a note plus convenience stuff such
@@ -20,7 +39,7 @@ class Note:
     """
     
     __slots__ = ['_fileProxy', '_header', '_text', '_text0', 
-                '_dt', '_dts',
+                'id', '_created', '_createdStr', '_modified', '_modifiedStr',
                 'title', 'tags', 'words', 'prefix']
    
     def __init__(self, fileProxy, header, text):
@@ -31,12 +50,14 @@ class Note:
         #
         self._parseHeader()
         self._parseText()
-        
-    # Direct properties
     
-    @property
-    def header(self):
-        return self._header
+#     def __eq__(self, other):
+#         return self.id == other.id
+#     
+#     def __hash__(self):
+#         return evalself.id
+    
+    # Direct properties
     
     @property
     def text(self):
@@ -46,23 +67,44 @@ class Note:
         self._text = text
         self._parseText()
     
-    def setHeader(self, text):
-        self._header = text.strip()
+    def setCreatedStr(self, text):
+        self._createdStr = text
+        self._generateHeader()
+    
+    def setModifiedStr(self, text):
+        self._modifiedStr = text
+        self._generateHeader()
+    
+    def _generateHeader(self):
+        self._header = 'id:%s, c:%s, m:%s' % (
+                        self.id, self._createdStr, self._modifiedStr)
         self._parseHeader()
     
     # Derived properties
     
     @property    
-    def datetime(self):
+    def created(self):
         """ Datetime representation of this note. Use for selection and sorting.
         """
-        return self._dt
+        return self._created
     
     @property    
-    def datestr(self):
+    def createdStr(self):
         """ Date string for this note.
         """
-        return self._dts
+        return self._createdStr
+    
+    @property    
+    def modfied(self):
+        """ Datetime representation of this note. Use for selection and sorting.
+        """
+        return self._modified
+    
+    @property    
+    def modifiedStr(self):
+        """ Date string for this note.
+        """
+        return self._modifiedStr
     
     @property
     def priority(self):
@@ -76,6 +118,14 @@ class Note:
         """ Save if the contents have not been changed.
         """
         if force or (self._text0 != self._text):
+            # Set modified
+            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            self.setModifiedStr(now)
+            # Get proxy to save to
+            if self._fileProxy.mainPoxy:
+                self._fileProxy = self._fileProxy.mainPoxy
+                self._fileProxy._notes.append(self)
+            # Save
             self._fileProxy.save()
     
     def delete(self):
@@ -87,17 +137,59 @@ class Note:
     # Private 
     
     def _parseHeader(self):
-        header = self._header
-        #self._dt = datetime.datetime.now() + datetime.timedelta(100) # Future
-        self._dt = datetime.datetime(1, 1, 1) # Long ago :) (only for sorting)
-        self._dts = ''
+        header = self._header.strip(' \t\n\r-:')
+        created = ''
+        modified = ''
+        id = None
+        
+        # Parse the header
+        for part in header.split(','):
+            key, colon, value = part.partition(':')
+            key, value = key.strip(), value.strip()
+            #
+            if key == 'id':
+                id = value
+            elif key in ('c', 'created'):
+                created = value
+            elif key in ('m', 'modified'):
+                modified = value
+            elif part:
+                created = part
+        
+        # Process id
+        if id is None:
+            if self._text.strip():
+                #id = hash(self._text) # doh, Python 3 has hash randomizatipn :)
+                id = hashlib.sha256(self._text.encode('utf-8')).hexdigest()
+            else:
+                print('created random id')
+                #id = random.randint(-sys.maxsize, sys.maxsize)
+                id = ''.join([random.choice('0123456789abcdef') for c in range(40)])
+        self.id = id
+        
+        # Parse date and time for created
+        self._created = datetime.datetime(9000, 1, 1) # In the future (only for sorting)
+        self._createdStr = ''
         for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d', '%Y%m%d']:
             try:
-                self._dt = datetime.datetime.strptime(header.strip(' \t\n\r-:'), fmt)
-                self._dts = self._dt.strftime('%Y-%m-%d')#('%x')
+                self._created = datetime.datetime.strptime(created, fmt)
+                self._createdStr = self._created.strftime('%Y-%m-%d')#('%x')
                 break
             except ValueError:
                 pass
+        
+         # Parse date and time for modified
+        self._modified = self._created
+        self._modifiedStr = ''
+        for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d', '%Y%m%d']:
+            try:
+                self._modified = datetime.datetime.strptime(modified, fmt)
+                self._modifiedStr = self._modified.strftime('%Y-%m-%d %H:%M:%S')#('%x')
+                break
+            except ValueError:
+                pass
+    
+    
     
     def _parseText(self):
         
@@ -129,7 +221,8 @@ class Note:
             self.prefix = '.'  # hidden
         elif not (self.prefix and self.prefix in '! !! !!! ? ?? ??? % % %%%'):
             self.prefix = '%'  # Default is a normal note
-
+    
+    
 
 
 class FileProxy:
@@ -138,7 +231,8 @@ class FileProxy:
     saving the notes back to file, and keeping track of updates.
     """
     
-    def __init__(self, filename):
+    def __init__(self, filename, mainPoxy=None):
+        self.mainPoxy = mainPoxy
         self._filename = filename
         self._modtime = 0
         self._notes = []
@@ -182,7 +276,7 @@ class FileProxy:
     def save(self):
         with open(self._filename, 'wb') as f:
             for note in self._notes:
-                fullheader = '\n---- %s\n' % note.header 
+                fullheader = '\n---- %s\n' % note._header 
                 f.write(fullheader.encode('utf-8'))
                 f.write(note.text.encode('utf-8'))
         self._modtime = os.path.getmtime(self._filename)

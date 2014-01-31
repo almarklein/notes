@@ -1,16 +1,23 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2013, Almar Klein
+# BSD licensed.
+
+""" notes.notedisplay
+This module implements the widgets to view the notes.
+"""
 
 import os
 import sys
 import time
 import datetime
 
-from iep.codeeditor.qt import QtCore, QtGui
+from pyzolib.qt import QtCore, QtGui
 
 
-CLR_NOTE = '#268bd2'
-CLR_TASK = '#cb4b16'  # orange '#cb4b16'   red '#dc322f'
-CLR_IDEA = '#859900'  # yellow '#b58900'   green '#859900'
-CLR_HIDE = '#666666'
+# CLR_NOTE = '#268bd2'
+# CLR_TASK = '#cb4b16'  # orange '#cb4b16'   red '#dc322f'
+# CLR_IDEA = '#859900'  # yellow '#b58900'   green '#859900'
+# CLR_HIDE = '#666666'
 
 
 class NotesContainer(QtGui.QWidget):
@@ -30,6 +37,9 @@ class NotesContainer(QtGui.QWidget):
         self._notesToShow = []
         self._notesToShow_pending = []  # Notes are not shown yet
         
+        # New note widget
+        self._newnote = NewNoteDisplay(self)
+        
         # Timer to keep scrolling right
         self._timer = QtCore.QTimer(self)
         self._timer.setInterval(100) # ms
@@ -44,12 +54,14 @@ class NotesContainer(QtGui.QWidget):
         self._stopperTimer.timeout.connect(self._checkNeedMoreDisplays)
         
         # Stopper widget
-        self._stopper = QtGui.QWidget(self)
+        self._stopper = QtGui.QLabel(self)
+        self._stopper.setAlignment(QtCore.Qt.AlignTop)
         self._stopper.setMinimumHeight(100)
         self._stopperTimer.start()
         
         # Layout notes
         noteLayout = QtGui.QVBoxLayout(self)
+        noteLayout.addWidget(self._newnote, 0)
         self.setLayout(noteLayout)
         #noteLayout.addStretch(1)
         noteLayout.addWidget(self._stopper, 1)
@@ -61,7 +73,7 @@ class NotesContainer(QtGui.QWidget):
         note = self._collection.newNote()
         noteDisplay = NoteDisplay(self, note)
         self._noteDisplays.append(noteDisplay)
-        self.layout().addWidget(noteDisplay, 0)
+        self.layout().insertWidget(1, noteDisplay, 0)
         noteDisplay.expandNote()
     
     
@@ -71,6 +83,11 @@ class NotesContainer(QtGui.QWidget):
                 return True
         else:
             return False
+    
+    
+    def setCollection(self, collection):
+        self._collection = collection
+        self.showNotes()
     
     
     def showNotes(self):
@@ -159,7 +176,7 @@ class NotesContainer(QtGui.QWidget):
         #self._main._tagsCompleter.setWordsToIgnore(tags)
         
         # Sort
-        selection2.sort(key=lambda x: x.datetime, reverse=True)
+        selection2.sort(key=lambda x: x.created, reverse=True)
         if prefix:
             selection2.sort(key=lambda x: x.priority, reverse=True)
         return selection2
@@ -176,19 +193,26 @@ class NotesContainer(QtGui.QWidget):
             note = self._notesToShow_pending.pop(0)
             
             noteDisplay = NoteDisplay(self, note)
+            #self.layout().insertWidget(len(self._noteDisplays), noteDisplay, 0)
+            self.layout().addWidget(noteDisplay, 0)
             self._noteDisplays.append(noteDisplay)
-            self.layout().insertWidget(1, noteDisplay, 0)
             noteToFocus = noteToFocus or noteDisplay
         
-        self._stopper.setMinimumHeight(20*len(self._notesToShow))
-        # Focus on that widget
-        self.focusOnNote(noteToFocus)
+        self._stopper.setMinimumHeight(20*len(self._notesToShow_pending)+20)
+        self.layout().addWidget(self._stopper, 1)
+        
+        if not self._notesToShow:
+            self._stopper.setText('no notes to display')
+        elif self._notesToShow_pending:
+            self._stopper.setText('loading notes ...')
+        else:
+            self._stopper.setText('')
     
     
     def _checkNeedMoreDisplays(self):
         if self._notesToShow_pending:
-            bottom = self._stopper.rect().bottom()
-            top = self.visibleRegion().boundingRect().top()
+            top = self._stopper.pos().y()  #self._stopper.rect().top()
+            bottom = self.visibleRegion().boundingRect().bottom()
             if bottom > top:
                 self._showNotes()
     
@@ -256,6 +280,21 @@ class NotesContainer(QtGui.QWidget):
         self._main._scrollArea.ensureVisible(pos.x(), pos.y())
 
 
+
+class NewNoteDisplay(QtGui.QPushButton):
+    def __init__(self, parent):
+        super().__init__(parent)
+        
+        #color = 'background-color:%s;' %  clr.name()
+        border = 'border: 1px solid #aaa; border-radius: 5px;'
+        self.setStyleSheet("NewNoteDisplay {%s}" % (border, ))
+        self.setMinimumHeight(25)
+        
+        self.setText('new note')
+        self.clicked.connect(self.parent().createNote)
+
+
+
 class NoteDisplay(QtGui.QFrame):
     """ GUI representation of one note.
     """
@@ -312,13 +351,13 @@ class NoteDisplay(QtGui.QFrame):
             self.close()
         elif 'date' in actionText:
             default = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            default = self._note.header or default
+            default = self._note.createdStr or default
             res = QtGui.QInputDialog.getText(self, "Set date for this note",
                 "Set the date for this note in format YYYY-MM-DD HH:MM (time is optional).",
                 text=default)
             if isinstance(res, tuple):
                 res = res[0]
-            self._note.setHeader(res)
+            self._note.setCreatedStr(res)
             self.updateLabel()
             self._note.save(True)
     
@@ -337,7 +376,10 @@ class NoteDisplay(QtGui.QFrame):
             self._tagsCompleter.setWordsToIgnore(note.tags)
         
         # Our background
-        MAP = {'%': CLR_NOTE, '!': CLR_TASK, '?': CLR_IDEA, '.': CLR_HIDE}
+        #MAP = {'%': CLR_NOTE, '!': CLR_TASK, '?': CLR_IDEA, '.': CLR_HIDE}
+        from .app import config
+        MAP = {'%': config.clr_note, '!': config.clr_task, 
+               '?': config.clr_idea, '.': config.clr_hide}
         clr = QtGui.QColor(MAP.get(note.prefix[0], '#EEE'))
         clr = clr.lighter([100, 200, 180, 160][note.priority])
         color = 'background-color:%s;' %  clr.name()
@@ -346,7 +388,7 @@ class NoteDisplay(QtGui.QFrame):
         
         # Get strings
         tagstring = ' '.join(note.tags) if note.tags else 'no tags'
-        when = self._note.datestr or 'no date'
+        when = self._note.createdStr or 'no date'
         closeString = ' <span style="font-style:italic">(click to close&save)</span>'
         closeString = closeString if (self._editor and self._editor.isVisible()) else ''
         # Set text
@@ -361,8 +403,8 @@ class NoteDisplay(QtGui.QFrame):
         if self._editor is None:
             self._editor = ScalingEditor(self)
             #
-            from . import TagCompleter
-            self._tagsCompleter = TagCompleter(self._editor, self.parent()._allTags)
+            from . import app
+            self._tagsCompleter = app.TagCompleter(self._editor, self.parent()._allTags)
             self._editor.setCompleter(self._tagsCompleter)
             #
             self._editor.textChanged.connect(self.updateLabel)
