@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """ Launcher for the notes.txt application.
 """
 
