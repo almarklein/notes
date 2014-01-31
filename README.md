@@ -6,9 +6,7 @@ notes (i.e. journal entries), tasks, and ideas (as in a [spark
 file](https://medium.com/the-writers-room/8d6e7df7ae58)). It also makes
 use of hashtags (which are #great) to organize notes.
 
-This repo also contains an app that implements the protocol. It is
-written as a tool for the IEP IDE, but with a bit of refactoring it can
-be a standalone app too.
+This repo also contains an app that implements the protocol. 
 
 
 # Introduction
@@ -23,12 +21,14 @@ notes are stored in one heap and shown chronologically by default.
 # Note storage
   
 Multiple notes can be stored in a text file. Notes are separated by
-lines that start with ``----``. Optionally, this separater line also
-contains a date (and time). The date should be formatted as:
-``YYYY-MM-DD``. Time (if given) should be formatted as ``HH:MM`` or
-``HH:MM:SS``.
+lines that start with ``----``. This separater line can also
+contain extra information, organized in key-value pairs separated by commas.
+Currently supported are *id*, *c* (created) and *m* (modified).
+For example: ``---- id:asjasdb32b2323g23jg23j c:2014-01-30 m:2014-01-31 11:36``
 
-TODO: Allow other date formats?
+For ease of use one can also specify simply the date (and time). 
+The date should be formatted as: ``YYYY-MM-DD``. Time (if given) should
+be formatted as ``HH:MM`` or ``HH:MM:SS``.
 
 This simple note format makes it easy for other applications to hook
 into the notes system, and the user can easily manage his/her notes
@@ -134,25 +134,38 @@ TODO:
   * Selecting a date range
     
 
+# Application
+
+The application in this repo needs Python3, PySide/PyQt4, and pyzolib
+(pure Python).
+
+It can also be used as a tool for IEP. To do so, clone the repository in your
+``~/.iep/tools/`` folder or equivalent.
+
+
 # Syncing and scaling up to large amounts of notes
   
-Just place the notes file in your dropbox folder to sync it between
-devices and back it up automatically. Dropbox also provides a history
-of your file.
+In Notes.text one selects a folder to store the notes. Each device that
+stores notes to this folder does so in its own file. In this way,
+you are guaranteed to have no synchronization conflicts.
 
-Applications that implement this protocol can (and are encouraged to)
-support reading from multiple files simultaneously. This can help
-prevent synchronisation conflicts, and can help keep the note files
-relatively small.
+An application that displays the notes for you should read the notes
+from all files that are named ``notes.<devicename>.txt``, but only
+write new or modified notes to the file that corresponds to the current
+device.
 
-For instance, use a "notes.txt", and a "notes_phone.txt". Both files
-can then be updated independently (also off-line) without fear of
-syncing problems.
+In this way, you can safely create new notes or modify them from any device
+even when you have no internet connection. After syncing, you will simply
+get the most recently modified version of each note. And you will have
+a backup of the versions created by each device.
 
-If your "note.txt" grows too large, rename it notes_old.txt, and create
-a new "notes.txt". The application will still allow to transparently
-see and edit all notes, but the old one will probably not be updated
-as often.
+So what happens when you create a note on one device and modify it on 
+another? There will be two versions of the note, but the latter has
+a modified time that is later. Applications can keep track of notes
+using their id. If an id is not specified explicitly, the sha1 hash
+of the text of the note (not the separator line) is used. In this way
+if you add a note in plain text and omit an id, it can be modified
+from another divice without 'duplication' it.
 
 The application should be able to cope with large amount of notes
 (possibly coming from different files. This means that a lightweight
