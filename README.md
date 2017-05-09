@@ -136,11 +136,10 @@ TODO:
 
 # Application
 
-The application in this repo needs Python3, PySide/PyQt4, and pyzolib
-(pure Python).
+The application in this repo needs Python3, qtpy and PyQt5/PySide2/PyQt4/PySide.
 
-It can also be used as a tool for IEP. To do so, clone the repository in your
-``~/.iep/tools/`` folder or equivalent.
+It can also be used as a tool for Pyzo. To do so, clone the repository in your
+``~/.pyzo/tools/`` folder or equivalent.
 
 
 # Syncing and scaling up to large amounts of notes

@@ -11,7 +11,7 @@ import sys
 import time
 import datetime
 
-from pyzolib.qt import QtCore, QtGui
+from qtpy import QtCore, QtGui, QtWidgets
 
 
 # CLR_NOTE = '#268bd2'
@@ -20,7 +20,7 @@ from pyzolib.qt import QtCore, QtGui
 # CLR_HIDE = '#666666'
 
 
-class NotesContainer(QtGui.QWidget):
+class NotesContainer(QtWidgets.QWidget):
     """ A container for notes.
     """
     
@@ -54,13 +54,13 @@ class NotesContainer(QtGui.QWidget):
         self._stopperTimer.timeout.connect(self._checkNeedMoreDisplays)
         
         # Stopper widget
-        self._stopper = QtGui.QLabel(self)
+        self._stopper = QtWidgets.QLabel(self)
         self._stopper.setAlignment(QtCore.Qt.AlignTop)
         self._stopper.setMinimumHeight(100)
         self._stopperTimer.start()
         
         # Layout notes
-        noteLayout = QtGui.QVBoxLayout(self)
+        noteLayout = QtWidgets.QVBoxLayout(self)
         noteLayout.addWidget(self._newnote, 0)
         self.setLayout(noteLayout)
         #noteLayout.addStretch(1)
@@ -281,7 +281,7 @@ class NotesContainer(QtGui.QWidget):
 
 
 
-class NewNoteDisplay(QtGui.QPushButton):
+class NewNoteDisplay(QtWidgets.QPushButton):
     def __init__(self, parent):
         super().__init__(parent)
         
@@ -295,7 +295,7 @@ class NewNoteDisplay(QtGui.QPushButton):
 
 
 
-class NoteDisplay(QtGui.QFrame):
+class NoteDisplay(QtWidgets.QFrame):
     """ GUI representation of one note.
     """
     
@@ -304,11 +304,11 @@ class NoteDisplay(QtGui.QFrame):
         self._note  = note
         
         # Create menu button
-        self._but = QtGui.QToolButton(self)
+        self._but = QtWidgets.QToolButton(self)
         self._but.setPopupMode(self._but.InstantPopup)
         self._but.setStyleSheet(" QToolButton {border:none;}")
         # Create menu
-        self._menu = QtGui.QMenu(self._but)
+        self._menu = QtWidgets.QMenu(self._but)
         self._menu.triggered.connect(self.onMenuSelect)
         self._but.setMenu(self._menu)
         # 
@@ -317,7 +317,7 @@ class NoteDisplay(QtGui.QFrame):
             self._menu.addAction(actionName)
         
         # Create label
-        self._label = QtGui.QLabel(self)
+        self._label = QtWidgets.QLabel(self)
         self._label.mousePressEvent = lambda ev: self._collapseOrExpand()
         self._label.setWordWrap(True)
         
@@ -331,11 +331,11 @@ class NoteDisplay(QtGui.QFrame):
     
     def _layout(self):
         
-        theLayout = QtGui.QVBoxLayout(self)
+        theLayout = QtWidgets.QVBoxLayout(self)
         theLayout.setContentsMargins(3,0,3,3)
         self.setLayout(theLayout)
         #
-        butLayout = QtGui.QHBoxLayout(self._label)
+        butLayout = QtWidgets.QHBoxLayout(self._label)
         self._label.setLayout(butLayout)
         butLayout.addStretch(1)
         butLayout.addWidget(self._but, 0)
@@ -352,7 +352,7 @@ class NoteDisplay(QtGui.QFrame):
         elif 'date' in actionText:
             default = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             default = self._note.createdStr or default
-            res = QtGui.QInputDialog.getText(self, "Set date for this note",
+            res = QtWidgets.QInputDialog.getText(self, "Set date for this note",
                 "Set the date for this note in format YYYY-MM-DD HH:MM (time is optional).",
                 text=default)
             if isinstance(res, tuple):
@@ -378,8 +378,8 @@ class NoteDisplay(QtGui.QFrame):
         # Our background
         #MAP = {'%': CLR_NOTE, '!': CLR_TASK, '?': CLR_IDEA, '.': CLR_HIDE}
         from .app import config
-        MAP = {'%': config.clr_note, '!': config.clr_task, 
-               '?': config.clr_idea, '.': config.clr_hide}
+        MAP = {'%': config['clr_note'], '!': config['clr_task'], 
+               '?': config['clr_idea'], '.': config['clr_hide']}
         clr = QtGui.QColor(MAP.get(note.prefix[0], '#EEE'))
         clr = clr.lighter([100, 200, 180, 160][note.priority])
         color = 'background-color:%s;' %  clr.name()
@@ -441,7 +441,7 @@ class NoteDisplay(QtGui.QFrame):
 
 
 
-class ScalingEditor(QtGui.QTextEdit):
+class ScalingEditor(QtWidgets.QTextEdit):
     """ Editor that scales itself with its contents; scrolling takes
     place in the ScrollArea. Also implements autocompletion.
     """
@@ -453,8 +453,8 @@ class ScalingEditor(QtGui.QTextEdit):
         super().__init__()
         self._fitted_height = self.MINHEIGHT
         self.textChanged.connect(self._fitHeightToDocument)
-        #self.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Preferred)
-        self.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Fixed)
+        #self.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Preferred)
+        self.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
         self.setAcceptRichText(False)
         self._completer = None
     
@@ -469,11 +469,11 @@ class ScalingEditor(QtGui.QTextEdit):
             self.parent().parent().focusOnEditor(self)
     
     def resizeEvent(self, event):
-        QtGui.QTextEdit.resizeEvent(self, event)
+        QtWidgets.QTextEdit.resizeEvent(self, event)
         self._fitHeightToDocument()
     
     def sizeHint(self):
-        sizeHint = QtGui.QPlainTextEdit.sizeHint(self)
+        sizeHint = QtWidgets.QPlainTextEdit.sizeHint(self)
         sizeHint.setHeight(min(self.MAXHEIGHT, self._fitted_height))
         return sizeHint
     
@@ -500,7 +500,7 @@ class ScalingEditor(QtGui.QTextEdit):
         return line.split(' ')[-1]
     
     def keyPressEvent(self, event):
-        QtGui.QTextEdit.keyPressEvent(self, event)
+        QtWidgets.QTextEdit.keyPressEvent(self, event)
         
         completionPrefix = self.textUnderCursor()
         if (completionPrefix != self._completer.completionPrefix()):

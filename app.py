@@ -8,18 +8,69 @@ This module implements the main application.
 
 import os
 import sys
+import json
 import time
 import datetime
 from socket import gethostname
 
-from pyzolib import ssdf
-from pyzolib import paths
-from pyzolib.path import Path
-from pyzolib.qt import QtCore, QtGui
+from qtpy import QtCore, QtGui, QtWidgets
 
 from .noteproxy import Note
 from .notecollection import NoteCollection
 from .notedisplay import NotesContainer
+
+
+# Taken from pyzolib
+def appdata_dir(appname=None, roaming=False):
+    """ appdata_dir(appname=None, roaming=False)
+    Get the path to the application directory, where applications are allowed
+    to write user specific files (e.g. configurations). For non-user specific
+    data, consider using common_appdata_dir().
+    If appname is given, a subdir is appended (and created if necessary). 
+    If roaming is True, will prefer a roaming directory (Windows Vista/7).
+    """
+    
+    # Define default user directory
+    userDir = os.path.expanduser('~')
+    
+    # Get system app data dir
+    path = None
+    if sys.platform.startswith('win'):
+        path1, path2 = os.getenv('LOCALAPPDATA'), os.getenv('APPDATA')
+        path = (path2 or path1) if roaming else (path1 or path2)
+    elif sys.platform.startswith('darwin'):
+        path = os.path.join(userDir, 'Library', 'Application Support')
+    # On Linux and as fallback
+    if not (path and os.path.isdir(path)):
+        path = userDir
+    
+    # Maybe we should store things local to the executable (in case of a 
+    # portable distro or a frozen application that wants to be portable)
+    prefix = sys.prefix
+    if getattr(sys, 'frozen', None): # See application_dir() function
+        prefix = os.path.abspath(os.path.dirname(sys.path[0]))
+    for reldir in ('settings', '../settings'):
+        localpath = os.path.abspath(os.path.join(prefix, reldir))
+        if os.path.isdir(localpath):
+            try:
+                open(os.path.join(localpath, 'test.write'), 'wb').close()
+                os.remove(os.path.join(localpath, 'test.write'))
+            except IOError:
+                pass # We cannot write in this directory
+            else:
+                path = localpath
+                break
+    
+    # Get path specific for this app
+    if appname:
+        if path == userDir:
+            appname = '.' + appname.lstrip('.') # Make it a hidden directory
+        path = os.path.join(path, appname)
+        if not os.path.isdir(path):
+            os.mkdir(path)
+    
+    # Done
+    return path
 
 
 class Settings(object):
@@ -29,25 +80,26 @@ class Settings(object):
     def __init__(self):
         
         # Determine filename to store config to
-        dir = paths.appdata_dir(roaming=True)
-        self._filename = os.path.join(dir, '.notes_txt.ssdf')
+        dir = appdata_dir(roaming=True)
+        self._filename = os.path.join(dir, '.notes_txt.json')
         
-        # If used as a tool in IEP, use IEP config
-        if 'iep' in sys.modules:
-            import iep
+        # If used as a tool in Pyzo, use Pyzo config
+        if 'pyzo' in sys.modules:
+            import pyzo
             try:
-                self._config = iep.config.tools.notes
+                self._config = pyzo.config.tools.notes
                 self._filename = None
             except AttributeError:
                 pass
         
         # Load config or create new
+        self._config = {}
         if self._filename:
             if os.path.isfile(self._filename):
-                self._config = ssdf.load(self._filename)
-            else:
-                self._config = ssdf.new()
-        
+                print('Loading config from ', self._filename)
+                text = open(self._filename, 'rb').read().decode()
+                if text.strip():
+                    self._config = json.loads(text)
         # Apply defaults
         for name, value in [    ('notefolders', []),
                                 ('notefolder', None),
@@ -68,7 +120,9 @@ class Settings(object):
         """ Save the configuration.
         """
         if self._filename:
-            ssdf.save(self._filename, self._config)
+            with open(self._filename, 'wb') as f:
+                text = json.dumps(self._config)
+                f.write(text.encode())
 
 
 # Create config and save function
@@ -78,7 +132,7 @@ saveConfig = _settings.save
 
 
 
-class Notes(QtGui.QWidget):
+class Notes(QtWidgets.QWidget):
     """ Main class that implements a GUI interface to the notes.
     """
     
@@ -89,7 +143,7 @@ class Notes(QtGui.QWidget):
         self._collection = NoteCollection()  # Init with empty collection
         
         # Create scroll area
-        self._scrollArea = QtGui.QScrollArea(self)
+        self._scrollArea = QtWidgets.QScrollArea(self)
         self._scrollArea.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self._scrollArea.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         self._scrollArea.setWidgetResizable(True)
@@ -100,19 +154,19 @@ class Notes(QtGui.QWidget):
         self._scrollArea.setWidget(self._container)
         
         # Button to create a new note
-        #self._newNoteBut = QtGui.QToolButton(self)
+        #self._newNoteBut = QtWidgets.QToolButton(self)
         #self._newNoteBut.setIcon(QtGui.QIcon.fromTheme('document-new'))
         #self._newNoteBut.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
         #self._newNoteBut.clicked.connect(self._container.createNote)
         
         # Settings button
-        self._settingsBut = QtGui.QToolButton(self)
+        self._settingsBut = QtWidgets.QToolButton(self)
         self._settingsBut.setText(' ')
         self._settingsBut.setIcon(QtGui.QIcon.fromTheme('emblem-system'))
         self._settingsBut.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self._settingsBut.setPopupMode(self._settingsBut.InstantPopup)
         #
-        self._settingsMenu = QtGui.QMenu(self._settingsBut)
+        self._settingsMenu = QtWidgets.QMenu(self._settingsBut)
         self._settingsBut.setMenu(self._settingsMenu)
         self._settingsMenu.triggered.connect(self.onSettingsMenuTriggered)
         self._settingsMenu.aboutToShow.connect(self.onSettingsMenuAboutToShow)
@@ -128,7 +182,7 @@ class Notes(QtGui.QWidget):
         
         # Give select field a menu
         button = self._select.addButtonRight(None, False)
-        self._tagMenu = menu = QtGui.QMenu(button)
+        self._tagMenu = menu = QtWidgets.QMenu(button)
         button.setMenu(menu)
         menu.triggered.connect(self.onTagsMenuTriggered)
         menu.aboutToShow.connect(self.onTagsMenuAboutToShow)
@@ -141,10 +195,10 @@ class Notes(QtGui.QWidget):
         self._timer.start()
         
         # Layout
-        layout = QtGui.QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         self.setLayout(layout)
         #
-        bottomLayout = QtGui.QHBoxLayout()
+        bottomLayout = QtWidgets.QHBoxLayout()
         bottomLayout.addWidget(self._select, 1)
         #bottomLayout.addWidget(self._newNoteBut, 0)
         bottomLayout.addWidget(self._settingsBut, 0)
@@ -153,19 +207,19 @@ class Notes(QtGui.QWidget):
         layout.addWidget(self._scrollArea)
         
         # 
-        if config.embedded:
+        if config['embedded']:
             layout.setContentsMargins(0,0,0,0)
         else:
             #layout.setContentsMargins(0,0,0,0)
             self.setWindowTitle('Notes.txt note and task manager')
-            if config.geometry:
-                self.setGeometry(*config.geometry)
+            if config['geometry']:
+                self.setGeometry(*config['geometry'])
             else:
                 self.resize(500, 700)
         
         # Start ...
-        if config.notefolder:
-            self.setNoteFolder(config.notefolder)
+        if config['notefolder']:
+            self.setNoteFolder(config['notefolder'])
         else:
             self._container.showNotes()
     
@@ -178,7 +232,7 @@ class Notes(QtGui.QWidget):
         # Try getting collection, use dummy otherwise
         errtext = ''
         try:
-            collection = NoteCollection.fromFolder(folder, config.computername)
+            collection = NoteCollection.fromFolder(folder, config['computername'])
         except Exception as err:
             errtext = str(err)
             collection = NoteCollection()
@@ -201,10 +255,10 @@ class Notes(QtGui.QWidget):
         menu.addAction('Font size ...')
         menu.addAction('Add notes folder ...')
         menu.addSeparator()
-        for folder in config.notefolders:
+        for folder in config['notefolders']:
             action = menu.addAction('Use %s' % folder)
             action.setCheckable(True)
-            if folder == config.notefolder:
+            if folder == config['notefolder']:
                 action.setChecked(True)
     
     
@@ -215,15 +269,15 @@ class Notes(QtGui.QWidget):
             # Edit the config using a text editor
             
             # Create dialog 
-            d = QtGui.QDialog(self)
-            d.setLayout(QtGui.QVBoxLayout(d))
+            d = QtWidgets.QDialog(self)
+            d.setLayout(QtWidgets.QVBoxLayout(d))
             d.setMinimumSize(600, 400)
             # Text edit
-            t = QtGui.QPlainTextEdit(d)
+            t = QtWidgets.QPlainTextEdit(d)
             d.layout().addWidget(t)
-            t.setPlainText(ssdf.saves(config))
+            t.setPlainText(json.dumps(config, indent=4))
             # Button
-            b = QtGui.QPushButton('Done', d)
+            b = QtWidgets.QPushButton('Done', d)
             d.layout().addWidget(b)
             b.clicked.connect(d.accept)
             
@@ -231,36 +285,36 @@ class Notes(QtGui.QWidget):
             d.exec_()
             if d.result():
                 text = t.toPlainText()
-                s = ssdf.loads(text)
+                s = json.loads(text)
                 for key in s:
                     config[key] = s[key]
         
         elif 'font' in cmd and 'size' in cmd:
-            i = QtGui.QInputDialog.getInt(self, 'Set font size', '',
-                config.fontsize, 6, 32) 
+            i = QtWidgets.QInputDialog.getInt(self, 'Set font size', '',
+                config['fontsize'], 6, 32) 
             if isinstance(i, tuple):
                 i = i[0]
-            config.fontsize = i
+            config['fontsize'] = i
         
         elif 'add' in cmd and 'folder' in cmd:
             # Add a folder
             
             # Get folder
-            s = QtGui.QFileDialog.getExistingDirectory(self, 
+            s = QtWidgets.QFileDialog.getExistingDirectory(self, 
                 'Select folder to store notes')
             if isinstance(s, tuple):
                 s = s[0]
             
             # Process
-            if s and os.path.isdir(s) and s not in config.notefolders:
-                config.notefolders.append(s)
-                config.notefolder = s
-                self.setNoteFolder(config.notefolder)
+            if s and os.path.isdir(s) and s not in config['notefolders']:
+                config['notefolders'].append(s)
+                config['notefolder'] = s
+                self.setNoteFolder(config['notefolder'])
         
         elif 'use' in cmd:
             folder = action.text().split(' ', 1)[1]
-            config.notefolder = folder
-            self.setNoteFolder(config.notefolder)
+            config['notefolder'] = folder
+            self.setNoteFolder(config['notefolder'])
         
         # Save
         saveConfig()
@@ -317,7 +371,7 @@ class Notes(QtGui.QWidget):
     def closeEvent(self, event):
         #print('Closing Notes widget.')
         g = self.geometry()
-        config.geometry = g.left(), g.top(), g.width(), g.height()
+        config['geometry'] = g.left(), g.top(), g.width(), g.height()
         saveConfig()
         super().closeEvent(event)
     
@@ -329,19 +383,19 @@ class Notes(QtGui.QWidget):
                 self._container.showNotes() # Update silently
             else:
                 filestr = '\n'.join([repr(f) for f in updatedFiles])
-                QtGui.QMessageBox.warning(self, "Notes updated externally",
+                QtWidgets.QMessageBox.warning(self, "Notes updated externally",
                     "Notes have been updated externally in\n%s\n\n" % filestr +
                     "Saving your notes now may override these updates " +
                     "if they're defined in the same file." )
 
 
 
-class TagCompleter(QtGui.QCompleter):
+class TagCompleter(QtWidgets.QCompleter):
     """ Completer implementation used for adding tags to a task.
     """
     
     def __init__(self, parent, words=None, wordsToIgnore=None):
-        QtGui.QCompleter.__init__(self, [], parent)
+        QtWidgets.QCompleter.__init__(self, [], parent)
         self.setWidget(parent)
         self._widget = parent # For some reason widget() can segfault on cleanup
         
@@ -375,13 +429,13 @@ class TagCompleter(QtGui.QCompleter):
             return ['xxxxxxxxxxxxxxxx']
 
 
-# From iep/tools/iepfilebrowser
-class LineEditWithToolButtons(QtGui.QLineEdit):
+# From pyzo/tools/pyzofilebrowser
+class LineEditWithToolButtons(QtWidgets.QLineEdit):
     """ Line edit to which tool buttons (with icons) can be attached.
     """
     
     def __init__(self, parent):
-        QtGui.QLineEdit.__init__(self, parent)
+        QtWidgets.QLineEdit.__init__(self, parent)
         self._leftButtons = []
         self._rightButtons = []
     
@@ -393,7 +447,7 @@ class LineEditWithToolButtons(QtGui.QLineEdit):
     
     def _addButton(self, icon, willHaveMenu, L):
         # Create button
-        button = QtGui.QToolButton(self)
+        button = QtWidgets.QToolButton(self)
         L.append(button)
         # Customize appearance
         if icon:
@@ -423,11 +477,11 @@ class LineEditWithToolButtons(QtGui.QLineEdit):
         self._updateGeometry()
     
     def resizeEvent(self, event):
-        QtGui.QLineEdit.resizeEvent(self, event)
+        QtWidgets.QLineEdit.resizeEvent(self, event)
         self._updateGeometry(True)
     
     def showEvent(self, event):
-        QtGui.QLineEdit.showEvent(self, event)
+        QtWidgets.QLineEdit.showEvent(self, event)
         self._updateGeometry()
     
     def _updateGeometry(self, light=False):
@@ -462,7 +516,7 @@ class LineEditWithToolButtons(QtGui.QLineEdit):
         
         # Set minimum size
         if not light:
-            fw = QtGui.qApp.style().pixelMetric(QtGui.QStyle.PM_DefaultFrameWidth)
+            fw = QtWidgets.qApp.style().pixelMetric(QtWidgets.QStyle.PM_DefaultFrameWidth)
             msz = self.minimumSizeHint()
             w = max(msz.width(), paddingLeft + paddingRight + 10)
             h = max(msz.height(), height + fw*2 + 2)

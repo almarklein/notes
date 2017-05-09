@@ -7,7 +7,7 @@ Application for the Notes.txt note taking format.
 Read more in the readme or at bitbucket.org/almarklein/notes
 """
 
-# Information for IEP, when used as a tool
+# Information for Pyzo, when used as a tool
 tool_name = "Notes"
 tool_summary = "Simple but powerful note taking app."
 
