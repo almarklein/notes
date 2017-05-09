@@ -64,6 +64,7 @@ class Note:
         return self._text
     
     def setText(self, text):
+        text = text.replace('\n----', '\n ----')
         self._text = text
         self._parseText()
     

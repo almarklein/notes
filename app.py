@@ -96,7 +96,6 @@ class Settings(object):
         self._config = {}
         if self._filename:
             if os.path.isfile(self._filename):
-                print('Loading config from ', self._filename)
                 text = open(self._filename, 'rb').read().decode()
                 if text.strip():
                     self._config = json.loads(text)
@@ -159,10 +158,13 @@ class Notes(QtWidgets.QWidget):
         #self._newNoteBut.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
         #self._newNoteBut.clicked.connect(self._container.createNote)
         
+        # Status label
+        self._statusLabel = QtWidgets.QLabel(self)
+        
         # Settings button
         self._settingsBut = QtWidgets.QToolButton(self)
-        self._settingsBut.setText(' ')
-        self._settingsBut.setIcon(QtGui.QIcon.fromTheme('emblem-system'))
+        self._settingsBut.setText('Config ')
+        #self._settingsBut.setIcon(QtGui.QIcon.fromTheme('emblem-system'))
         self._settingsBut.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self._settingsBut.setPopupMode(self._settingsBut.InstantPopup)
         #
@@ -200,7 +202,7 @@ class Notes(QtWidgets.QWidget):
         #
         bottomLayout = QtWidgets.QHBoxLayout()
         bottomLayout.addWidget(self._select, 1)
-        #bottomLayout.addWidget(self._newNoteBut, 0)
+        bottomLayout.addWidget(self._statusLabel, 0)
         bottomLayout.addWidget(self._settingsBut, 0)
         layout.addLayout(bottomLayout)
         #
@@ -377,6 +379,13 @@ class Notes(QtWidgets.QWidget):
     
     
     def checkUpToDate(self):
+        
+        # Status
+        n_notes = len(self._collection)
+        n_hidden = len([n for n in self._collection if n.prefix == '.'])
+        self._statusLabel.setText('%i notes (+ %i hidden)' % (n_notes - n_hidden, n_hidden))
+        
+        # Update from the outside
         updatedFiles = self._collection.update()
         if updatedFiles:
             if not self._container.hasNotesExpanded():

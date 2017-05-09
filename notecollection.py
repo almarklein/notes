@@ -62,6 +62,9 @@ class NoteCollection:
         return NoteCollection(*files)
     
     
+    def __len__(self):
+        return len(self._notes)
+    
     def __iter__(self):
         return self._notes.values().__iter__()
     
@@ -69,7 +72,7 @@ class NoteCollection:
         """ Create a new note in the default file.
         """
         note = self._fileProxies[0].newNote()
-        self._notes[id] = note
+        self._notes[note.id] = note
         return note
     
     def update(self):

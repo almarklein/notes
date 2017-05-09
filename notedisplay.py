@@ -313,7 +313,7 @@ class NoteDisplay(QtWidgets.QFrame):
         self._but.setMenu(self._menu)
         # 
         # todo: move to default note file
-        for actionName in ['Delete note', 'Reset date']:
+        for actionName in ['Reset date', 'Hide note', 'Delete note (from current file)']:
             self._menu.addAction(actionName)
         
         # Create label
@@ -346,7 +346,10 @@ class NoteDisplay(QtWidgets.QFrame):
     
     def onMenuSelect(self, action):
         actionText = action.text().lower()
-        if 'delete' in actionText:
+        if 'hide' in actionText:
+            self._note.setText('.' + self._note.text)
+            self.close()
+        elif 'delete' in actionText:
             self._note.delete()
             self.close()
         elif 'date' in actionText:
