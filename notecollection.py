@@ -89,4 +89,25 @@ class NoteCollection:
                     elif note.modifiedStr >= curNote.modifiedStr:
                         self._notes[note.id] = note
         return updated
-
+    
+    def save_consolidated(self, filename):
+        notes = list(self._notes.values())
+        notes.sort(key=lambda n: (n.prefix != '.', n.created))
+        
+        with open(filename, 'wb') as f:
+            for note in notes:
+                fullheader = '\n---- %s\n' % note._header 
+                f.write(fullheader.encode('utf-8'))
+                f.write(note.text.encode('utf-8'))
+    
+    # def check_deleted(self):
+    #     all_note_ids = []
+    #     for fileProxy in self._fileProxies:
+    #         all_note_ids.extend([n.id for n in fileProxy._notes])
+    #     all_note_ids = set(all_note_ids)
+    #     
+    #     for id in list(self._notes.keys()):
+    #         if id not in all_note_ids
+            
+            
+            

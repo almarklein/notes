@@ -259,6 +259,9 @@ class Notes(QtWidgets.QWidget):
         menu.addAction('Font size ...')
         menu.addAction('Add notes folder ...')
         menu.addSeparator()
+        menu.addAction('Consolidate ...')
+        menu.addAction('Backup ...')
+        menu.addSeparator()
         for folder in config['notefolders']:
             action = menu.addAction('Use %s' % folder)
             action.setCheckable(True)
@@ -320,9 +323,34 @@ class Notes(QtWidgets.QWidget):
             config['notefolder'] = folder
             self.setNoteFolder(config['notefolder'])
         
+        elif 'consolidate' in cmd:
+            text = 'All notes will be stored in the file corresponding to the current device '
+            text += 'and removed from all others. The notes will be ordered by date (hidden ones first). '
+            text += 'Only do this if you are sure that no other device have pending changes to the used note folders. '
+            text += '\n\nProceed with consolidation?'
+            res = QtWidgets.QMessageBox.question(self, 'Consolidate notes', text)
+            if res == QtWidgets.QMessageBox.Yes:
+                # Clear all
+                for fileproxy in self._collection._fileProxies:
+                    with open(fileproxy._filename, 'wb') as f:
+                        pass
+                # Consolidate
+                filename =  self._collection._fileProxies[0]._filename
+                self._collection.save_consolidated(filename)
+                # Exit
+                QtWidgets.QMessageBox.information(self, 'Consolidate notes', 'The app will now close, please restart.')
+                sys.exit()
+        
+        elif 'backup' in cmd:
+            s = QtWidgets.QFileDialog.getSaveFileName(self, 
+                'Select folder to backup (consolidated) notes', os.path.expanduser('~'))
+            if isinstance(s, tuple):
+                s = s[0]
+            if s:
+                self._collection.save_consolidated(s)
+        
         # Save
         saveConfig()
-        
     
     
     def onTagsMenuAboutToShow(self):
