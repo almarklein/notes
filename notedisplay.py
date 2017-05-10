@@ -424,7 +424,7 @@ class NoteDisplay(QtWidgets.QFrame):
             self.layout().addWidget(self._editor, 0)
             self._editor.setText(self._note.text)
             
-            editfont = config.get('editfont', 'Dejavu sans mono')
+            editfont = app.config.get('editfont', 'Dejavu sans mono')
             font = QtGui.QFont(editfont)
             font.setPointSize(app.config['fontsize'])
             self._editor.setFont(font)

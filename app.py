@@ -11,6 +11,7 @@ import sys
 import json
 import time
 import datetime
+import traceback
 from socket import gethostname
 
 from qtpy import QtCore, QtGui, QtWidgets
@@ -140,6 +141,8 @@ class Notes(QtWidgets.QWidget):
     def __init__(self, parent):
         super().__init__(parent)
         
+        sys.excepthook = self.notes_excepthook
+        
         # Store proxy
         self._collection = NoteCollection()  # Init with empty collection
         
@@ -226,6 +229,12 @@ class Notes(QtWidgets.QWidget):
             self.setNoteFolder(config['notefolder'])
         else:
             self._container.showNotes()
+    
+    
+    def notes_excepthook(self, type, value, tb):
+        out = 'Uncaught Python exception: ' + str(value) + '\n'
+        out += ''.join(traceback.format_list(traceback.extract_tb(tb)))
+        QtWidgets.QMessageBox.critical(self, 'An exception occured', out)
     
     
     def setNoteFolder(self, folder):
