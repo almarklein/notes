@@ -103,6 +103,8 @@ class Settings(object):
         for name, value in [    ('notefolders', []),
                                 ('notefolder', None),
                                 ('fontsize', 11),
+                                ('titlefont', 'Verdana'),
+                                ('editfont', 'Dejavu sans mono'),
                                 ('computername', gethostname()),
                                 ('embedded', (self._filename is None)),
                                 ('geometry', None),

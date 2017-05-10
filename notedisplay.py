@@ -164,7 +164,7 @@ class NotesContainer(QtWidgets.QWidget):
                     elif item not in note.tags:
                         showNote = False
                 for item in words:
-                    if item not in note.words:
+                    if item not in note.words and ('#' + item) not in note.tags:
                         showNote = False
                 if showNote:
                     selection2.append(note)
@@ -373,14 +373,23 @@ class NoteDisplay(QtWidgets.QFrame):
     
     
     def updateLabel(self):
+        from .app import config
+        
         note = self._note
         if self._editor is not None:
             note.setText(self._editor.toPlainText())
             self._tagsCompleter.setWordsToIgnore(note.tags)
         
+        titlefont = config.get('titlefont', 'Verdana')
+        mononame = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont).family()
+        
+        font = QtGui.QFont(titlefont)  
+        font.setPointSize(config['fontsize'])
+        self._label.setFont(font)
+        
         # Our background
         #MAP = {'%': CLR_NOTE, '!': CLR_TASK, '?': CLR_IDEA, '.': CLR_HIDE}
-        from .app import config
+        
         MAP = {'%': config['clr_note'], '!': config['clr_task'], 
                '?': config['clr_idea'], '.': config['clr_hide']}
         clr = QtGui.QColor(MAP.get(note.prefix[0], '#EEE'))
@@ -396,26 +405,30 @@ class NoteDisplay(QtWidgets.QFrame):
         closeString = closeString if (self._editor and self._editor.isVisible()) else ''
         # Set text
         F = '<span style="font-size:small; color:#777;">%s - %s %s</span>'
-        title = '<span style="font-family:mono;">%s</span> %s' % (
-                        note.prefix, note.title.strip(note.prefix+' '))
+        title = '<span style="font-family: %s;">%s</span> %s' % (
+                        mononame, note.prefix, note.title.strip(note.prefix+' '))
         self._label.setText(F % (when, tagstring, closeString)+'<br />'+title)
         #self._title.setText(note.title)
     
     
     def makeEditor(self):
         if self._editor is None:
+            from . import app
+            
             self._editor = ScalingEditor(self)
             #
-            from . import app
             self._tagsCompleter = app.TagCompleter(self._editor, self.parent()._allTags)
             self._editor.setCompleter(self._tagsCompleter)
             #
             self._editor.textChanged.connect(self.updateLabel)
             self.layout().addWidget(self._editor, 0)
             self._editor.setText(self._note.text)
+            
+            editfont = config.get('editfont', 'Dejavu sans mono')
+            font = QtGui.QFont(editfont)
+            font.setPointSize(app.config['fontsize'])
+            self._editor.setFont(font)
             #self._editor.focusOutEvent = lambda ev: self._collapseOrExpand()
-            
-            
     
     def _collapseOrExpand(self):
         if self._editor and self._editor.isVisible():
